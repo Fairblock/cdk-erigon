@@ -731,31 +731,6 @@ func (api *ZkEvmAPIImpl) getAccInputHash(ctx context.Context, db SequenceReader,
 	// get batch range for sequence
 	prevSequenceBatch, currentSequenceBatch := prevSequenceData.BatchNo, batchSequenceData.BatchNo
 
-	//TODO: get forkid for both batches
-	prevBatchForkId, currentBatchForkId := uint64(9), uint64(9)
-
-	// get old and new acc input hashes
-	var prevAccInputHash, currentAccInputHash common.Hash
-	if prevBatchForkId < uint64(constants.ForkID7Etrog) {
-		prevAccInputHash, err = api.l1Syncer.GetOldAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, prevSequenceBatch)
-	} else {
-		//TODO: check if new function is needed for post etrog
-		prevAccInputHash, err = api.l1Syncer.GetOldAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, prevSequenceBatch)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get old acc input hash for batch %d: %w", prevSequenceBatch, err)
-	}
-
-	if currentBatchForkId < uint64(constants.ForkID7Etrog) {
-		currentAccInputHash, err = api.l1Syncer.GetOldAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, currentSequenceBatch)
-	} else {
-		//TODO: check if new function is needed for post etrog
-		currentAccInputHash, err = api.l1Syncer.GetOldAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, currentSequenceBatch)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get old acc input hash for batch %d: %w", currentSequenceBatch, err)
-	}
-
 	// get call data for tx
 	l1Transaction, _, err := api.l1Syncer.GetTransaction(batchSequenceData.L1TxHash)
 	if err != nil {
@@ -766,10 +741,32 @@ func (api *ZkEvmAPIImpl) getAccInputHash(ctx context.Context, db SequenceReader,
 		return nil, fmt.Errorf("calldata for tx %s is too short", batchSequenceData.L1TxHash)
 	}
 
-	// from calldata get batchTransactions, GER, timestamp, l2Coinbase
-	decodedCalldata, err := syncer.DecodeEtrogSequenceBatchesCallData(sequenceBatchesCalldata)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode calldata for tx %s: %w", batchSequenceData.L1TxHash, err)
+	//TODO: get forkid for both batches
+	prevBatchForkId, currentBatchForkId := uint64(9), uint64(9)
+
+	// get old and new acc input hashes
+	if prevBatchForkId < uint64(constants.ForkID7Etrog) {
+		//TODO: preetrog
+	} else {
+		//TODO: check if new function is needed for post etrog
+		prevAccInputHash, err := api.l1Syncer.GetOldAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, prevSequenceBatch)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get old acc input hash for batch %d: %w", prevSequenceBatch, err)
+		}
+
+		currentAccInputHash, err := api.l1Syncer.GetOldAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, currentSequenceBatch)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get old acc input hash for batch %d: %w", currentSequenceBatch, err)
+		}
+
+		// from calldata get batchTransactions, GER, timestamp, l2Coinbase
+		decodedCalldata, err := syncer.DecodeEtrogSequenceBatchesCallData(sequenceBatchesCalldata)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode calldata for tx %s: %w", batchSequenceData.L1TxHash, err)
+		}
+
+		// calculate acc input hash
+		accInputHash, err := utils.CalculateAccInputHash(prevAccInputHash, currentAccInputHash, decodedCalldata.BatchTransactions, decodedCalldata.GER, decodedCalldata.Timestamp, decodedCalldata.L2Coinbase)
 	}
 
 }
