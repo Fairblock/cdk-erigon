@@ -13,6 +13,7 @@ import (
 	"github.com/gateway-fm/cdk-erigon-lib/kv"
 	"github.com/gateway-fm/cdk-erigon-lib/kv/memdb"
 	jsoniter "github.com/json-iterator/go"
+	zktypes "github.com/ledgerwatch/erigon/zk/types"
 
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon/common/hexutil"
@@ -715,6 +716,62 @@ func (api *ZkEvmAPIImpl) GetBatchByNumber(ctx context.Context, batchNumber rpc.B
 	}
 
 	return populateBatchDetails(batch)
+}
+
+type SequenceReader interface {
+	GetRangeSequencesByBatch(batchNo uint64) (*zktypes.L1BatchInfo, *zktypes.L1BatchInfo, error)
+}
+
+func (api *ZkEvmAPIImpl) getAccInputHash(ctx context.Context, db SequenceReader, batchNum uint64) (*common.Hash, error) {
+	// get batch sequence
+	prevSequenceData, batchSequenceData, err := db.GetRangeSequencesByBatch(batchNum)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sequence range data for batch %d: %w", batchNum, err)
+	}
+	// get batch range for sequence
+	prevSequenceBatch, currentSequenceBatch := prevSequenceData.BatchNo, batchSequenceData.BatchNo
+
+	//TODO: get forkid for both batches
+	prevBatchForkId, currentBatchForkId := uint64(9), uint64(9)
+
+	// get old and new acc input hashes
+	var prevAccInputHash, currentAccInputHash common.Hash
+	if prevBatchForkId < uint64(constants.ForkID7Etrog) {
+		prevAccInputHash, err = api.l1Syncer.GetOldAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, prevSequenceBatch)
+	} else {
+		//TODO: check if new function is needed for post etrog
+		prevAccInputHash, err = api.l1Syncer.GetOldAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, prevSequenceBatch)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get old acc input hash for batch %d: %w", prevSequenceBatch, err)
+	}
+
+	if currentBatchForkId < uint64(constants.ForkID7Etrog) {
+		currentAccInputHash, err = api.l1Syncer.GetOldAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, currentSequenceBatch)
+	} else {
+		//TODO: check if new function is needed for post etrog
+		currentAccInputHash, err = api.l1Syncer.GetOldAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, currentSequenceBatch)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get old acc input hash for batch %d: %w", currentSequenceBatch, err)
+	}
+
+	// get call data for tx
+	l1Transaction, _, err := api.l1Syncer.GetTransaction(batchSequenceData.L1TxHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction data for tx %s: %w", batchSequenceData.L1TxHash, err)
+	}
+	sequenceBatchesCalldata := l1Transaction.GetData()
+	if len(sequenceBatchesCalldata) < 10 {
+		return nil, fmt.Errorf("calldata for tx %s is too short", batchSequenceData.L1TxHash)
+	}
+
+	// from calldata get batchTransactions, GER, timestamp, l2Coinbase
+	decodedCalldata, err := syncer.DecodeEtrogSequenceBatchesCallData(sequenceBatchesCalldata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode calldata for tx %s: %w", batchSequenceData.L1TxHash, err)
+	}
+
 }
 
 // GetFullBlockByNumber returns a full block from the current canonical chain. If number is nil, the

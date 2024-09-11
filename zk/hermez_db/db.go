@@ -294,6 +294,10 @@ func (db *HermezDbReader) GetSequenceByBatchNo(batchNo uint64) (*types.L1BatchIn
 	return db.getByBatchNo(L1SEQUENCES, batchNo)
 }
 
+func (db *HermezDbReader) GetRangeSequencesByBatch(batchNo uint64) (*types.L1BatchInfo, *types.L1BatchInfo, error) {
+	return db.getPrevAndCurrentForBatch(L1SEQUENCES, batchNo)
+}
+
 func (db *HermezDbReader) GetSequenceByBatchNoOrHighest(batchNo uint64) (*types.L1BatchInfo, error) {
 	seq, err := db.GetSequenceByBatchNo(batchNo)
 	if err != nil {
@@ -439,6 +443,77 @@ func (db *HermezDbReader) getByL1Block(table string, l1BlockNo uint64) (*types.L
 	}
 
 	return nil, nil
+}
+
+func (db *HermezDbReader) getPrevAndCurrentForBatch(table string, batchNo uint64) (prev *types.L1BatchInfo, current *types.L1BatchInfo, err error) {
+	c, err := db.tx.Cursor(table)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer c.Close()
+
+	var k, v []byte
+	for k, v, err = c.First(); k != nil; k, v, err = c.Next() {
+		if err != nil {
+			return nil, nil, err
+		}
+
+		l1Block, batch, err := SplitKey(k)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// found the current one
+		if batch >= batchNo {
+			if len(v) != 96 && len(v) != 64 {
+				return nil, nil, fmt.Errorf("invalid hash length")
+			}
+
+			l1TxHash := common.BytesToHash(v[:32])
+			stateRoot := common.BytesToHash(v[32:64])
+			var l1InfoRoot common.Hash
+			if len(v) > 64 {
+				l1InfoRoot = common.BytesToHash(v[64:])
+			}
+
+			current = &types.L1BatchInfo{
+				BatchNo:    batchNo,
+				L1BlockNo:  l1Block,
+				StateRoot:  stateRoot,
+				L1TxHash:   l1TxHash,
+				L1InfoRoot: l1InfoRoot,
+			}
+
+			break
+		}
+	}
+
+	k, v, err = c.Prev()
+	if len(v) != 96 && len(v) != 64 {
+		return nil, nil, fmt.Errorf("invalid hash length")
+	}
+
+	l1Block, _, err := SplitKey(k)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	l1TxHash := common.BytesToHash(v[:32])
+	stateRoot := common.BytesToHash(v[32:64])
+	var l1InfoRoot common.Hash
+	if len(v) > 64 {
+		l1InfoRoot = common.BytesToHash(v[64:])
+	}
+
+	prev = &types.L1BatchInfo{
+		BatchNo:    batchNo,
+		L1BlockNo:  l1Block,
+		StateRoot:  stateRoot,
+		L1TxHash:   l1TxHash,
+		L1InfoRoot: l1InfoRoot,
+	}
+
+	return prev, current, nil
 }
 
 func (db *HermezDbReader) getByBatchNo(table string, batchNo uint64) (*types.L1BatchInfo, error) {

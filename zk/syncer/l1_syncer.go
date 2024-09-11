@@ -25,11 +25,14 @@ var (
 var errorShortResponseLT32 = fmt.Errorf("response too short to contain hash data")
 var errorShortResponseLT96 = fmt.Errorf("response too short to contain last batch number data")
 
-const rollupSequencedBatchesSignature = "0x25280169" // hardcoded abi signature
-const globalExitRootManager = "0xd02103ca"
-const rollupManager = "0x49b7b802"
-const admin = "0xf851a440"
-const trustedSequencer = "0xcfa8ed47"
+const (
+	rollupSequencedBatchesSignature = "0x25280169" // hardcoded abi signature
+	globalExitRootManager           = "0xd02103ca"
+	rollupManager                   = "0x49b7b802"
+	admin                           = "0xf851a440"
+	trustedSequencer                = "0xcfa8ed47"
+	sequencedBatchesMapSignature    = "0xb4d63f58"
+)
 
 type IEtherman interface {
 	HeaderByNumber(ctx context.Context, blockNumber *big.Int) (*ethTypes.Header, error)
@@ -213,6 +216,7 @@ func (s *L1Syncer) GetTransaction(hash common.Hash) (ethTypes.Transaction, bool,
 	return em.TransactionByHash(context.Background(), hash)
 }
 
+// TODO: fix
 func (s *L1Syncer) GetOldAccInputHash(ctx context.Context, addr *common.Address, rollupId, batchNum uint64) (common.Hash, error) {
 	h, _, err := s.callGetRollupSequencedBatches(ctx, addr, rollupId, batchNum)
 	if err != nil {
@@ -454,6 +458,8 @@ func (s *L1Syncer) getSequencedLogs(jobs <-chan fetchJob, results chan jobResult
 	}
 }
 
+// calls the rollup contract to get the accInputHash for a certain batch
+// returns the accInputHash and lastBatchNumber
 func (s *L1Syncer) callGetRollupSequencedBatches(ctx context.Context, addr *common.Address, rollupId, batchNum uint64) (common.Hash, uint64, error) {
 	rollupID := fmt.Sprintf("%064x", rollupId)
 	batchNumber := fmt.Sprintf("%064x", batchNum)
