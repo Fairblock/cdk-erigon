@@ -493,7 +493,7 @@ func (db *HermezDbReader) getPrevAndCurrentForBatch(table string, batchNo uint64
 		return nil, nil, fmt.Errorf("invalid hash length")
 	}
 
-	l1Block, _, err := SplitKey(k)
+	l1Block, prevBatch, err := SplitKey(k)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -506,7 +506,7 @@ func (db *HermezDbReader) getPrevAndCurrentForBatch(table string, batchNo uint64
 	}
 
 	prev = &types.L1BatchInfo{
-		BatchNo:    batchNo,
+		BatchNo:    prevBatch,
 		L1BlockNo:  l1Block,
 		StateRoot:  stateRoot,
 		L1TxHash:   l1TxHash,
@@ -617,8 +617,11 @@ func (db *HermezDbReader) getLatest(table string) (*types.L1BatchInfo, error) {
 	}, nil
 }
 
-func (db *HermezDb) WriteSequence(l1BlockNo, batchNo uint64, l1TxHash, stateRoot common.Hash) error {
-	val := append(l1TxHash.Bytes(), stateRoot.Bytes()...)
+func (db *HermezDb) WriteSequence(l1BlockNo, batchNo uint64, l1TxHash, stateRoot, l1InfoRoot common.Hash) error {
+	val := make([]byte, 0, 96)
+	val = append(val, l1TxHash.Bytes()...)
+	val = append(val, stateRoot.Bytes()...)
+	val = append(val, l1InfoRoot.Bytes()...)
 	return db.tx.Put(L1SEQUENCES, ConcatKey(l1BlockNo, batchNo), val)
 }
 
@@ -634,8 +637,7 @@ func (db *HermezDb) RollbackSequences(batchNo uint64) error {
 			break
 		}
 
-		err = db.tx.Delete(L1SEQUENCES, ConcatKey(latestSequence.L1BlockNo, latestSequence.BatchNo))
-		if err != nil {
+		if err = db.tx.Delete(L1SEQUENCES, ConcatKey(latestSequence.L1BlockNo, latestSequence.BatchNo)); err != nil {
 			return err
 		}
 	}
@@ -674,8 +676,7 @@ func (db *HermezDb) TruncateSequences(l2BlockNo uint64) error {
 			continue
 		}
 		// delete seq
-		err = db.tx.Delete(L1SEQUENCES, ConcatKey(seq.L1BlockNo, seq.BatchNo))
-		if err != nil {
+		if err = db.tx.Delete(L1SEQUENCES, ConcatKey(seq.L1BlockNo, seq.BatchNo)); err != nil {
 			return err
 		}
 	}
