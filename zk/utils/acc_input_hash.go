@@ -11,7 +11,7 @@ import (
 // calculates the new accInputHash based on the old one and data frem one new batch
 // this returns the accInputHash for the current batch
 // oldAccInputHash - the accInputHash from the previous batch
-func CalculateAccInputHash(
+func CalculateEtrogAccInputHash(
 	oldAccInputHash common.Hash,
 	batchTransactionData []byte,
 	l1InfoRoot common.Hash,

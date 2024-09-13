@@ -226,6 +226,17 @@ func (s *L1Syncer) GetOldAccInputHash(ctx context.Context, addr *common.Address,
 	return h, nil
 }
 
+// returns accInputHash only if the batch matches the last batch in sequence
+// on Etrrof the rollup contract was changed so data is taken differently
+func (s *L1Syncer) GetEtrogAccInputHash(ctx context.Context, addr *common.Address, rollupId, batchNum uint64) (common.Hash, error) {
+	h, _, err := s.callGetRollupSequencedBatches(ctx, addr, rollupId, batchNum)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return h, nil
+}
+
 func (s *L1Syncer) GetL1BlockTimeStampByTxHash(ctx context.Context, txHash common.Hash) (uint64, error) {
 	em := s.getNextEtherman()
 	r, err := em.TransactionReceipt(ctx, txHash)
