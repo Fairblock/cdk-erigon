@@ -141,6 +141,7 @@ Loop:
 				info, batchLogType := parseLogType(cfg.zkCfg.L1RollupId, &l)
 				switch batchLogType {
 				case logSequence:
+					fallthrough
 				case logSequenceEtrog:
 					// prevent storing pre-etrog sequences for etrog rollups
 					if batchLogType == logSequence && cfg.zkCfg.L1RollupId > 1 {
@@ -163,6 +164,7 @@ Loop:
 						highestWrittenL1BlockNo = info.L1BlockNo
 					}
 				case logVerify:
+					fallthrough
 				case logVerifyEtrog:
 					// prevent storing pre-etrog verifications for etrog rollups
 					if batchLogType == logVerify && cfg.zkCfg.L1RollupId > 1 {
