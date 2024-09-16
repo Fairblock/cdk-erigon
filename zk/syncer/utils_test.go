@@ -20,3 +20,17 @@ func Test_decodeEtrogSequenceBatchesCallData(t *testing.T) {
 		require.Equal(t, &tc.Expected, calldata)
 	}
 }
+
+func Test_decodePreEtrogSequenceBatchesCallData(t *testing.T) {
+	input := decodePreEtrogSequenceBatchesCallDataTestCases
+
+	for _, tc := range input {
+		data := common.FromHex(tc.Input)
+		calldata, err := DecodePreEtrogSequenceBatchesCallData(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		require.Equal(t, &tc.Expected, calldata)
+	}
+}

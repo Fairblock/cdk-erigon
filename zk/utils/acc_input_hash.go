@@ -47,6 +47,40 @@ func CalculateEtrogAccInputHash(
 	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6)), nil
 }
 
+// calculates the new accInputHash based on the old one and data frem one new batch
+// this returns the accInputHash for the current batch
+// oldAccInputHash - the accInputHash from the previous batch
+func CalculatePreEtrogAccInputHash(
+	oldAccInputHash common.Hash,
+	batchTransactionData []byte,
+	globalExitRoot common.Hash,
+	timestamp uint64,
+	sequencerAddress common.Address,
+) (newAccInputHash common.Hash, err error) {
+	batchHashData := CalculateBatchHashData(batchTransactionData)
+	v1 := oldAccInputHash.Bytes()
+	v2 := batchHashData
+	v3 := globalExitRoot.Bytes()
+	v4 := big.NewInt(0).SetUint64(timestamp).Bytes()
+	v5 := sequencerAddress.Bytes()
+
+	// Add 0s to make values 32 bytes long
+	for len(v1) < 32 {
+		v1 = append([]byte{0}, v1...)
+	}
+	for len(v3) < 32 {
+		v3 = append([]byte{0}, v3...)
+	}
+	for len(v4) < 8 {
+		v4 = append([]byte{0}, v4...)
+	}
+	for len(v5) < 20 {
+		v5 = append([]byte{0}, v5...)
+	}
+
+	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5)), nil
+}
+
 // parses batch transactions bytes into a batchHashData
 // used for accInputHash calculation
 // transactionBytes are as taken from the sequenceBatches calldata

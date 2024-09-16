@@ -445,7 +445,6 @@ func (api *ZkEvmAPIImpl) GetBatchByNumber(ctx context.Context, batchNumber rpc.B
 	}
 	defer tx.Rollback()
 	hermezDb := hermez_db.NewHermezDbReader(tx)
-
 	// use inbuilt rpc.BlockNumber type to implement the 'latest' behaviour
 	// the highest block/batch is tied to last block synced
 	// unless the node is still syncing - in which case 'current block' is used
@@ -718,6 +717,7 @@ func (api *ZkEvmAPIImpl) GetBatchByNumber(ctx context.Context, batchNumber rpc.B
 
 type SequenceReader interface {
 	GetRangeSequencesByBatch(batchNo uint64) (*zktypes.L1BatchInfo, *zktypes.L1BatchInfo, error)
+	GetForkId(batchNo uint64) (uint64, error)
 }
 
 func (api *ZkEvmAPIImpl) getAccInputHash(ctx context.Context, db SequenceReader, batchNum uint64) (accInputHash *common.Hash, err error) {
@@ -740,11 +740,36 @@ func (api *ZkEvmAPIImpl) getAccInputHash(ctx context.Context, db SequenceReader,
 	}
 
 	//TODO: get forkid for both batches
-	_, currentBatchForkId := uint64(9), uint64(9)
+	currentBatchForkId, err := db.GetForkId(currentSequenceBatch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get fork id for batch %d: %w", currentSequenceBatch, err)
+	}
 
 	// get old and new acc input hashes
 	if currentBatchForkId < uint64(constants.ForkID7Etrog) {
-		//TODO: preetrog
+		prevAccInputHash, err := api.l1Syncer.GetPreEtrogAccInputHash(ctx, &api.config.AddressRollup, prevSequenceBatch)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get old acc input hash for batch %d: %w", prevSequenceBatch, err)
+		}
+
+		// from calldata get batchTransactions, GER, timestamp, l2Coinbase
+		decodedCalldata, err := syncer.DecodePreEtrogSequenceBatchesCallData(sequenceBatchesCalldata)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode calldata for tx %s: %w", batchSequence.L1TxHash, err)
+		}
+
+		// calculate acc input hash
+		for i, dec := range decodedCalldata.Batches {
+			currentAccInputHash, err := utils.CalculatePreEtrogAccInputHash(prevAccInputHash, dec.Transactions, dec.GlobalExitRoot, dec.Timestamp, decodedCalldata.L2Coinbase)
+			if err != nil {
+				return nil, fmt.Errorf("failed to calculate acc input hash for batch %d: %w", currentSequenceBatch, err)
+			}
+			if prevSequenceBatch+uint64(i)+uint64(1) == batchNum {
+				accInputHash = &currentAccInputHash
+				break
+			}
+			prevAccInputHash = currentAccInputHash
+		}
 	} else {
 		prevAccInputHash, err := api.l1Syncer.GetEtrogAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, prevSequenceBatch)
 		if err != nil {
@@ -1114,7 +1139,7 @@ func (api *ZkEvmAPIImpl) GetProverInput(ctx context.Context, batchNumber uint64,
 		return nil, err
 	}
 
-	oldAccInputHash, err := api.l1Syncer.GetOldAccInputHash(ctx, &api.config.AddressRollup, api.config.L1RollupId, batchNumber)
+	oldAccInputHash, err := api.getAccInputHash(ctx, hDb, batchNumber)
 	if err != nil {
 		return nil, err
 	}

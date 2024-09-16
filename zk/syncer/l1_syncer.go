@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gateway-fm/cdk-erigon-lib/common"
+	"github.com/iden3/go-iden3-crypto/keccak256"
 	ethereum "github.com/ledgerwatch/erigon"
 	"github.com/ledgerwatch/log/v3"
 
@@ -41,6 +42,7 @@ type IEtherman interface {
 	CallContract(ctx context.Context, msg ethereum.CallMsg, blockNumber *big.Int) ([]byte, error)
 	TransactionByHash(ctx context.Context, hash common.Hash) (ethTypes.Transaction, bool, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*ethTypes.Receipt, error)
+	StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error)
 }
 
 type fetchJob struct {
@@ -216,9 +218,8 @@ func (s *L1Syncer) GetTransaction(hash common.Hash) (ethTypes.Transaction, bool,
 	return em.TransactionByHash(context.Background(), hash)
 }
 
-// TODO: fix
-func (s *L1Syncer) GetOldAccInputHash(ctx context.Context, addr *common.Address, rollupId, batchNum uint64) (common.Hash, error) {
-	h, _, err := s.callGetRollupSequencedBatches(ctx, addr, rollupId, batchNum)
+func (s *L1Syncer) GetPreEtrogAccInputHash(ctx context.Context, addr *common.Address, batchNum uint64) (common.Hash, error) {
+	h, err := s.callSequencedBatchesMap(ctx, addr, batchNum)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -467,6 +468,32 @@ func (s *L1Syncer) getSequencedLogs(jobs <-chan fetchJob, results chan jobResult
 			}
 		}
 	}
+}
+
+// calls the old rollup contract to get the accInputHash for a certain batch
+// returns the accInputHash and lastBatchNumber
+func (s *L1Syncer) callSequencedBatchesMap(ctx context.Context, addr *common.Address, batchNum uint64) (accInputHash common.Hash, err error) {
+	mapKeyHex := fmt.Sprintf("%064x%064x", batchNum, 114 /* _legacySequencedBatches slot*/)
+	mapKey := keccak256.Hash(common.FromHex(mapKeyHex))
+	mkh := common.BytesToHash(mapKey)
+
+	em := s.getNextEtherman()
+
+	resp, err := em.StorageAt(ctx, *addr, mkh, nil)
+	if err != nil {
+		return
+	}
+
+	if err != nil {
+		return
+	}
+
+	if len(resp) < 32 {
+		return
+	}
+	accInputHash = common.BytesToHash(resp[:32])
+
+	return
 }
 
 // calls the rollup contract to get the accInputHash for a certain batch
