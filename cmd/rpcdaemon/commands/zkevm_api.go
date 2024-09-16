@@ -698,6 +698,9 @@ func (api *ZkEvmAPIImpl) GetBatchByNumber(ctx context.Context, batchNumber rpc.B
 	if err != nil {
 		return nil, fmt.Errorf("failed to get acc input hash for batch %d: %w", batchNo, err)
 	}
+	if accInputHash == nil {
+		return nil, fmt.Errorf("acc input hash not found for batch %d", batchNo)
+	}
 	batch.AccInputHash = *accInputHash
 
 	// forkid exit roots logic
