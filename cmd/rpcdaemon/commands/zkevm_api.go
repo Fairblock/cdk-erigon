@@ -1152,9 +1152,15 @@ func (api *ZkEvmAPIImpl) GetProverInput(ctx context.Context, batchNumber uint64,
 		return nil, err
 	}
 
-	oldAccInputHash, err := api.getAccInputHash(ctx, hDb, batchNumber)
-	if err != nil {
-		return nil, err
+	var oldAccInputHash common.Hash
+	if batchNumber > 0 {
+		oaih, err := api.getAccInputHash(ctx, hDb, batchNumber-1)
+		if err != nil {
+			return nil, err
+		}
+		oldAccInputHash = *oaih
+	} else {
+		oldAccInputHash = common.Hash{}
 	}
 
 	timestampLimit := lastBlock.Time()
