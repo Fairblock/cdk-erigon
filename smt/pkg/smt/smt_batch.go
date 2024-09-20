@@ -237,7 +237,7 @@ func (s *SMT) InsertBatch(cfg InsertBatchConfig, nodeKeys []*utils.NodeKey, node
 		default:
 		}
 		if !nodeValue.IsZero() {
-			err = s.hashSave(nodeValue.ToUintArray(), utils.BranchCapacity, *nodeValuesHashes[i])
+			err = s.hashSaveByPointers(nodeValue.ToUintArrayByPointer(), &utils.BranchCapacity, nodeValuesHashes[i])
 			if err != nil {
 				return nil, err
 			}
@@ -468,7 +468,7 @@ func updateNodeHashesForDelete(nodeHashesForDelete map[uint64]map[uint64]map[uin
 // no point to parallelize this function because db consumer is slower than this producer
 func calculateAndSaveHashesDfs(sdh *smtDfsHelper, smtBatchNode *smtBatchNode, path []int, level int) {
 	if smtBatchNode.isLeaf() {
-		hashObj, hashValue := hashCalcAndPrepareForSaveByPointers(utils.ConcatArrays4ByPointers((*[4]uint64)(smtBatchNode.nodeLeftHashOrRemainingKey), (*[4]uint64)(smtBatchNode.nodeRightHashOrValueHash)), &utils.LeafCapacity)
+		hashObj, hashValue := utils.HashKeyAndValueByPointers(utils.ConcatArrays4ByPointers(smtBatchNode.nodeLeftHashOrRemainingKey.AsUint64Pointer(), smtBatchNode.nodeRightHashOrValueHash.AsUint64Pointer()), &utils.LeafCapacity)
 		smtBatchNode.hash = hashObj
 		if !sdh.s.noSaveOnInsert {
 			sdh.dataChan <- newSmtDfsHelperDataStruct(hashObj, hashValue)
@@ -497,7 +497,7 @@ func calculateAndSaveHashesDfs(sdh *smtDfsHelper, smtBatchNode *smtBatchNode, pa
 		totalHash.SetHalfValue(*smtBatchNode.nodeRightHashOrValueHash, 1) // no point to check for error because we used hardcoded 1 which ensures that no error will be returned
 	}
 
-	hashObj, hashValue := hashCalcAndPrepareForSaveByPointers(totalHash.ToUintArrayByPointer(), &utils.BranchCapacity)
+	hashObj, hashValue := utils.HashKeyAndValueByPointers(totalHash.ToUintArrayByPointer(), &utils.BranchCapacity)
 	if !sdh.s.noSaveOnInsert {
 		sdh.dataChan <- newSmtDfsHelperDataStruct(hashObj, hashValue)
 	}
