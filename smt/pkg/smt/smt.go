@@ -257,9 +257,6 @@ func (s *SMT) insert(k utils.NodeKey, v utils.NodeValue8, newValH [4]uint64, old
 			foundVal = foundValA
 
 			foundKey = utils.JoinKey(usedKey, foundRKey)
-			if err != nil {
-				return nil, err
-			}
 		} else {
 			oldRoot = utils.NodeKeyFromBigIntArray(siblings[level][keys[level]*4 : keys[level]*4+4])
 			usedKey = append(usedKey, keys[level])
@@ -559,9 +556,9 @@ func (s *SMT) hashcalcAndSave(in [8]uint64, capacity [4]uint64) ([4]uint64, erro
 	return h, s.hashSave(in, capacity, h)
 }
 
-func hashCalcAndPrepareForSave(in [8]uint64, capacity [4]uint64) ([4]uint64, utils.NodeValue12, error) {
+func hashCalcAndPrepareForSave(in [8]uint64, capacity [4]uint64) ([4]uint64, utils.NodeValue12) {
 	h := utils.Hash(in, capacity)
-	return h, prepareHashValueForSave(in, capacity), nil
+	return h, prepareHashValueForSave(in, capacity)
 }
 
 func (s *RoSMT) getLastRoot() (utils.NodeKey, error) {
