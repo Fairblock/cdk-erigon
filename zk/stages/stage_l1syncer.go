@@ -42,6 +42,7 @@ type IL1Syncer interface {
 	StopQueryBlocks()
 	ConsumeQueryBlocks()
 	WaitQueryBlocksToFinish()
+	CheckL1BlockFinalized(blockNo uint64) (bool, uint64, error)
 }
 
 var (
