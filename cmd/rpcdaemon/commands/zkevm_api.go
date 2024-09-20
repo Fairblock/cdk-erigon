@@ -698,14 +698,16 @@ func (api *ZkEvmAPIImpl) GetBatchByNumber(ctx context.Context, batchNumber rpc.B
 	}
 	batch.BatchL2Data = batchL2Data
 
-	accInputHash, err := api.getAccInputHash(ctx, hermezDb, batchNo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get acc input hash for batch %d: %w", batchNo, err)
-	}
-	if accInputHash == nil {
-		return nil, fmt.Errorf("acc input hash not found for batch %d", batchNo)
-	}
-	batch.AccInputHash = *accInputHash
+	if api.l1Syncer != nil {
+	  accInputHash, err := api.getAccInputHash(ctx, hermezDb, batchNo)
+	  if err != nil {
+		  return nil, fmt.Errorf("failed to get acc input hash for batch %d: %w", batchNo, err)
+	  }
+	  if accInputHash == nil {
+		  return nil, fmt.Errorf("acc input hash not found for batch %d", batchNo)
+	  }
+	  batch.AccInputHash = *accInputHash
+  }
 
 	// forkid exit roots logic
 	// if forkid < 12 then we should only set the exit roots if they have changed, otherwise 0x00..00
