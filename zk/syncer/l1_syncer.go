@@ -218,7 +218,7 @@ func (s *L1Syncer) GetTransaction(hash common.Hash) (ethTypes.Transaction, bool,
 	return em.TransactionByHash(context.Background(), hash)
 }
 
-func (s *L1Syncer) GetPreEtrogAccInputHash(ctx context.Context, addr *common.Address, batchNum uint64) (common.Hash, error) {
+func (s *L1Syncer) GetPreElderberryAccInputHash(ctx context.Context, addr *common.Address, batchNum uint64) (common.Hash, error) {
 	h, err := s.callSequencedBatchesMap(ctx, addr, batchNum)
 	if err != nil {
 		return common.Hash{}, err
@@ -229,7 +229,7 @@ func (s *L1Syncer) GetPreEtrogAccInputHash(ctx context.Context, addr *common.Add
 
 // returns accInputHash only if the batch matches the last batch in sequence
 // on Etrrof the rollup contract was changed so data is taken differently
-func (s *L1Syncer) GetEtrogAccInputHash(ctx context.Context, addr *common.Address, rollupId, batchNum uint64) (common.Hash, error) {
+func (s *L1Syncer) GetElderberryAccInputHash(ctx context.Context, addr *common.Address, rollupId, batchNum uint64) (common.Hash, error) {
 	h, _, err := s.callGetRollupSequencedBatches(ctx, addr, rollupId, batchNum)
 	if err != nil {
 		return common.Hash{}, err
