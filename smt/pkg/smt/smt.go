@@ -542,6 +542,18 @@ func prepareHashValueForSave(in [8]uint64, capacity [4]uint64) utils.NodeValue12
 	return v
 }
 
+func prepareHashValueForSaveByPointers(in *[8]uint64, capacity *[4]uint64) *utils.NodeValue12 {
+	v := utils.NodeValue12{}
+	for i, val := range in {
+		v[i] = new(big.Int).SetUint64(val)
+	}
+	for i, val := range capacity {
+		v[i+8] = new(big.Int).SetUint64(val)
+	}
+
+	return &v
+}
+
 func (s *SMT) hashSave(in [8]uint64, capacity, h [4]uint64) error {
 	if s.noSaveOnInsert {
 		return nil
@@ -559,6 +571,11 @@ func (s *SMT) hashcalcAndSave(in [8]uint64, capacity [4]uint64) ([4]uint64, erro
 func hashCalcAndPrepareForSave(in [8]uint64, capacity [4]uint64) ([4]uint64, utils.NodeValue12) {
 	h := utils.Hash(in, capacity)
 	return h, prepareHashValueForSave(in, capacity)
+}
+
+func hashCalcAndPrepareForSaveByPointers(in *[8]uint64, capacity *[4]uint64) (*[4]uint64, *utils.NodeValue12) {
+	h := utils.HashByPointers(in, capacity)
+	return h, prepareHashValueForSaveByPointers(in, capacity)
 }
 
 func (s *RoSMT) getLastRoot() (utils.NodeKey, error) {

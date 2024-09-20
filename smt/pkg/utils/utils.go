@@ -56,6 +56,12 @@ func Hash(in [8]uint64, capacity [4]uint64) [4]uint64 {
 	return result
 }
 
+func HashByPointers(in *[8]uint64, capacity *[4]uint64) *[4]uint64 {
+	var result [4]uint64 = [4]uint64{0, 0, 0, 0}
+	hashFunc(in, capacity, &result)
+	return &result
+}
+
 func (nk *NodeKey) IsZero() bool {
 	return nk[0] == 0 && nk[1] == 0 && nk[2] == 0 && nk[3] == 0
 }
@@ -112,6 +118,22 @@ func (nv *NodeValue8) ToUintArray() [8]uint64 {
 	// if nv is nil, result will be an array of 8 zeros
 
 	return result
+}
+
+func (nv *NodeValue8) ToUintArrayByPointer() *[8]uint64 {
+	var result [8]uint64
+
+	if nv != nil {
+		for i := 0; i < 8; i++ {
+			if nv[i] != nil {
+				result[i] = nv[i].Uint64()
+			}
+			// if nv[i] is nil, result[i] will remain as its zero value (0)
+		}
+	}
+	// if nv is nil, result will be an array of 8 zeros
+
+	return &result
 }
 
 func (nv *NodeValue12) ToBigInt() *big.Int {
@@ -409,6 +431,13 @@ func ConcatArrays4(a, b [4]uint64) [8]uint64 {
 		result[i+4] = v
 	}
 	return result
+}
+
+func ConcatArrays4ByPointers(a, b *[4]uint64) *[8]uint64 {
+	return &[8]uint64{
+		a[0], a[1], a[2], a[3],
+		b[0], b[1], b[2], b[3],
+	}
 }
 
 func ConcatArrays8AndCapacity(in [8]uint64, capacity [4]uint64) NodeValue12 {
