@@ -35,7 +35,7 @@ func Test_CalculateEtrogAccInputHash(t *testing.T) {
 		sequencerAddress := common.HexToAddress(tc.sequencerAddress)
 		forcedBlockHashL1 := common.HexToHash(tc.forcedBlockHashL1)
 
-		newAccInputHash, err := CalculateEtrogAccInputHash(
+		newAccInputHash := CalculateEtrogAccInputHash(
 			oldAccInputHash,
 			batchTransactionData,
 			l1InfoRoot,
@@ -44,7 +44,6 @@ func Test_CalculateEtrogAccInputHash(t *testing.T) {
 			forcedBlockHashL1,
 		)
 
-		require.NoError(t, err)
 		require.Equal(t, common.HexToHash(tc.Expected), newAccInputHash)
 	}
 }
@@ -74,7 +73,7 @@ func Test_CalculatePreEtrogAccInputHash(t *testing.T) {
 		globalExitRoot := common.HexToHash(tc.globalExitRoot)
 		sequencerAddress := common.HexToAddress(tc.sequencerAddress)
 
-		newAccInputHash, err := CalculatePreEtrogAccInputHash(
+		newAccInputHash := CalculatePreEtrogAccInputHash(
 			oldAccInputHash,
 			batchTransactionData,
 			globalExitRoot,
@@ -82,7 +81,6 @@ func Test_CalculatePreEtrogAccInputHash(t *testing.T) {
 			sequencerAddress,
 		)
 
-		require.NoError(t, err)
 		require.Equal(t, common.HexToHash(tc.Expected), newAccInputHash)
 	}
 }
