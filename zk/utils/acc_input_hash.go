@@ -18,7 +18,7 @@ func CalculateEtrogAccInputHash(
 	limitTimestamp uint64,
 	sequencerAddress common.Address,
 	forcedBlockHashL1 common.Hash,
-) (newAccInputHash common.Hash, err error) {
+) *common.Hash {
 	batchHashData := CalculateBatchHashData(batchTransactionData)
 	v1 := oldAccInputHash.Bytes()
 	v2 := batchHashData
@@ -44,7 +44,9 @@ func CalculateEtrogAccInputHash(
 		v6 = append([]byte{0}, v6...)
 	}
 
-	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6)), nil
+	hash := common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6))
+
+	return &hash
 }
 
 // calculates the new accInputHash based on the old one and data frem one new batch
@@ -56,7 +58,7 @@ func CalculatePreEtrogAccInputHash(
 	globalExitRoot common.Hash,
 	timestamp uint64,
 	sequencerAddress common.Address,
-) (newAccInputHash common.Hash, err error) {
+) *common.Hash {
 	batchHashData := CalculateBatchHashData(batchTransactionData)
 	v1 := oldAccInputHash.Bytes()
 	v2 := batchHashData
@@ -78,7 +80,9 @@ func CalculatePreEtrogAccInputHash(
 		v5 = append([]byte{0}, v5...)
 	}
 
-	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5)), nil
+	hash := common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5))
+
+	return &hash
 }
 
 // parses batch transactions bytes into a batchHashData

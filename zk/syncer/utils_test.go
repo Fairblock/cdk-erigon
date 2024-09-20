@@ -8,11 +8,11 @@ import (
 )
 
 func Test_decodeEtrogSequenceBatchesCallData(t *testing.T) {
-	input := decodeEtrogSequenceBatchesCallDataTestCases
+	input := decodeElderberrySequenceBatchesCallDataTestCases
 
 	for _, tc := range input {
 		data := common.FromHex(tc.Input)
-		calldata, err := DecodeEtrogSequenceBatchesCallData(data)
+		calldata, err := DecodeSequenceBatchesCalldata(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -26,7 +26,7 @@ func Test_decodePreEtrogSequenceBatchesCallData(t *testing.T) {
 
 	for _, tc := range input {
 		data := common.FromHex(tc.Input)
-		calldata, err := DecodePreEtrogSequenceBatchesCallData(data)
+		calldata, err := DecodeSequenceBatchesCalldata(data)
 		if err != nil {
 			t.Fatal(err)
 		}
