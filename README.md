@@ -1,8 +1,21 @@
+
+
 # cdk-erigon
 
-cdk-erigon is a fork of Erigon, currently in Alpha, optimized for syncing with the Polygon Hermez zkEVM network.
+cdk-erigon is a fork of Erigon, currently in Alpha, optimized for syncing with the Polygon Hermez zkEVM network. This fork includes the precompile for decrypting IBE ciphertexts.
+Below is a brief documentation of the precompile and how it can be used:
 
+The precompile is implemented at 0x0000000000000000000000000000000000000094 and the code can be found in `core/vm/contracts_zkevm.go`.
+For running a local version of Polygon CDK including the precompile, first create an image from this repository:
+```
+docker build -t cdk-precompile .
+```
+Then, use the instructions from this [link](https://docs.polygon.technology/cdk/getting-started/local-deployment/) to run the chain. In order to use the precompile image, change the `cdk_erigon_node_image` name in `params.yml` in the `kurtosis-cdk` repository before running it. 
+
+Once the chain is up, the commands in the `test-precompile/test.sh` script can be used to either call the precompile directly, or through a sample contract provided in the `test-precompile` directory.
 ***
+
+
 ## Release Roadmap
 - **v1.1.x**: RPC (full support)
 - **v2.x.x**: Sequencer (full support)
