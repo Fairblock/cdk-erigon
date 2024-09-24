@@ -21,10 +21,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
-
+	"bytes"
 	libcommon "github.com/gateway-fm/cdk-erigon-lib/common"
 	"github.com/holiman/uint256"
-
+	enc "github.com/FairBlock/DistributedIBE/encryption"
+	bls "github.com/drand/kyber-bls12381"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/crypto"
@@ -53,6 +54,7 @@ var PrecompiledContractsForkID5Dragonfruit = map[libcommon.Address]PrecompiledCo
 	libcommon.BytesToAddress([]byte{7}): &bn256ScalarMulIstanbul_zkevm{},
 	libcommon.BytesToAddress([]byte{8}): &bn256PairingIstanbul_zkevm{},
 	libcommon.BytesToAddress([]byte{9}): &blake2F_zkevm{},
+	libcommon.BytesToAddress([]byte{0x94}):&decryption{},
 }
 
 // PrecompiledContractForkID7Etrog contains the default set of pre-compiled ForkID7 Etrog.
@@ -66,6 +68,7 @@ var PrecompiledContractForkID7Etrog = map[libcommon.Address]PrecompiledContract_
 	libcommon.BytesToAddress([]byte{7}): &bn256ScalarMulIstanbul_zkevm{enabled: true},
 	libcommon.BytesToAddress([]byte{8}): &bn256PairingIstanbul_zkevm{enabled: true},
 	libcommon.BytesToAddress([]byte{9}): &blake2F_zkevm{enabled: false},
+	libcommon.BytesToAddress([]byte{0x94}):&decryption{},
 }
 
 // PrecompiledContractsForkID8 contains the default set of pre-compiled ForkID8.
@@ -79,6 +82,7 @@ var PrecompiledContractsForkID8Elderberry = map[libcommon.Address]PrecompiledCon
 	libcommon.BytesToAddress([]byte{7}): &bn256ScalarMulIstanbul_zkevm{enabled: true},
 	libcommon.BytesToAddress([]byte{8}): &bn256PairingIstanbul_zkevm{enabled: true},
 	libcommon.BytesToAddress([]byte{9}): &blake2F_zkevm{enabled: false},
+	libcommon.BytesToAddress([]byte{0x94}):&decryption{},
 }
 
 // ECRECOVER implemented as a native contract.
@@ -1141,4 +1145,49 @@ func (c *bls12381MapG2_zkevm) Run(input []byte) ([]byte, error) {
 
 	// Encode the G2 point to 256 bytes
 	return g.EncodePoint(r), nil
+}
+
+
+
+// decryption function for bls12-381
+func decrypt(input []byte) ([]byte, error) {
+
+	privateKeyByte := input[0 : 96]
+   
+	cipherBytes := input[96:]
+    
+	
+		suite := bls.NewBLS12381Suite()
+		privateKeyPoint := suite.G2().Point()
+		err := privateKeyPoint.UnmarshalBinary(privateKeyByte)
+		if err != nil {
+			return []byte{},err
+		}
+		var destPlainText bytes.Buffer
+		var cipherBuffer bytes.Buffer
+		_, err = cipherBuffer.Write(cipherBytes)
+		if err != nil {
+			return []byte{},err
+		}
+		err = enc.Decrypt(privateKeyPoint, privateKeyPoint, &destPlainText, &cipherBuffer)
+		if err != nil {
+			return []byte{},err
+		}
+		return []byte(destPlainText.String()),nil
+
+    
+   
+}
+
+type decryption struct{cc      *CounterCollector}
+func (c *decryption) RequiredGas(input []byte) uint64 {
+	return params.Bn256PairingBaseGasIstanbul 
+}
+func (c *decryption) Run(input []byte) ([]byte, error) {
+	return decrypt(input)
+}
+func (c *decryption) SetCounterCollector(cc *CounterCollector) {
+	c.cc = cc
+}
+func (c *decryption) SetOutputLength(outLength int) {
 }

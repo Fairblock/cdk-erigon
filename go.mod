@@ -113,7 +113,15 @@ require (
 )
 
 require (
+	filippo.io/age v1.1.1 // indirect
+	github.com/drand/kyber v1.2.0 // indirect
+	github.com/drand/kyber-bls12381 v0.2.5 // indirect
+	github.com/kilic/bls12-381 v0.1.0 // indirect
+)
+
+require (
 	crawshaw.io/sqlite v0.3.3-0.20220618202545-d1964889ea3c // indirect
+	github.com/FairBlock/DistributedIBE v0.0.0-20231211202607-d457df6869db
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/ajwerner/btree v0.0.0-20211221152037-f427b3e689c0 // indirect
 	github.com/alecthomas/atomic v0.1.0-alpha2 // indirect
