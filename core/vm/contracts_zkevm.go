@@ -17,15 +17,17 @@
 package vm
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"math/big"
-	"bytes"
+
+	enc "github.com/FairBlock/DistributedIBE/encryption"
+	"github.com/drand/kyber"
+	bls "github.com/drand/kyber-bls12381"
 	libcommon "github.com/gateway-fm/cdk-erigon-lib/common"
 	"github.com/holiman/uint256"
-	enc "github.com/FairBlock/DistributedIBE/encryption"
-	bls "github.com/drand/kyber-bls12381"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/crypto"
@@ -1148,46 +1150,150 @@ func (c *bls12381MapG2_zkevm) Run(input []byte) ([]byte, error) {
 }
 
 
+type decryption struct {
+	cc      *CounterCollector
+	pk      []byte 
+}
 
-// decryption function for bls12-381
-func decrypt(input []byte) ([]byte, error) {
 
-	privateKeyByte := input[0 : 96]
-   
-	cipherBytes := input[96:]
-    
+func (c *decryption) Get() ([]byte, error) {
+	return c.pk, nil
+}
+
+
+func (c *decryption) Set(_pk []byte) (bool, error) {
+	suite := bls.NewBLS12381Suite()
+	pkPoint := suite.G1().Point()
+
+	// Unmarshal the public key
+	err := pkPoint.UnmarshalBinary(_pk)
+	if err != nil {
+		return false, err
+	}
+
+	// Store the public key
+	c.pk = _pk
+
+	return true, nil
+}
+
+
+func (c *decryption) decrypt(privateKeyByte []byte, cipherBytes []byte, id string) ([]byte, error) {
+	suite := bls.NewBLS12381Suite()
+	privateKeyPoint := suite.G2().Point()
+
+
+	err := privateKeyPoint.UnmarshalBinary(privateKeyByte)
+	if err != nil {
+		return []byte{1}, err
+	}
+
+
+	pkPoint := suite.G1().Point()
+	err = pkPoint.UnmarshalBinary(c.pk)
+	if err != nil {
+		return []byte{2}, err
+	}
+
+
+	hG2, ok := suite.G2().Point().(kyber.HashablePoint)
+	if !ok {
+		return []byte{3}, fmt.Errorf("failed to hash to G2")
+	}
+	idByte := []byte(id)
+	Qid := hG2.Hash(idByte)
+
+
+	p1 := suite.Pair(pkPoint, Qid)
+	p2 := suite.Pair(suite.G1().Point().Base(), privateKeyPoint)
+
 	
-		suite := bls.NewBLS12381Suite()
-		privateKeyPoint := suite.G2().Point()
-		err := privateKeyPoint.UnmarshalBinary(privateKeyByte)
-		if err != nil {
-			return []byte{},err
-		}
-		var destPlainText bytes.Buffer
-		var cipherBuffer bytes.Buffer
-		_, err = cipherBuffer.Write(cipherBytes)
-		if err != nil {
-			return []byte{},err
-		}
-		err = enc.Decrypt(privateKeyPoint, privateKeyPoint, &destPlainText, &cipherBuffer)
-		if err != nil {
-			return []byte{},err
-		}
-		return []byte(destPlainText.String()),nil
+	if !p1.Equal(p2) {
+		return []byte{4}, nil
+	}
 
-    
-   
+	
+	var destPlainText bytes.Buffer
+	var cipherBuffer bytes.Buffer
+	_, err = cipherBuffer.Write(cipherBytes)
+	if err != nil {
+		return []byte{5}, err
+	}
+
+	err = enc.Decrypt(privateKeyPoint, privateKeyPoint, &destPlainText, &cipherBuffer)
+	if err != nil {
+		return []byte{6}, err
+	}
+
+	return []byte(destPlainText.String()), nil
 }
 
-type decryption struct{cc      *CounterCollector}
-func (c *decryption) RequiredGas(input []byte) uint64 {
-	return params.Bn256PairingBaseGasIstanbul 
-}
 func (c *decryption) Run(input []byte) ([]byte, error) {
-	return decrypt(input)
+	// Determine the method to execute based on the first byte
+	switch input[0] {
+	case 0x01: // Call the Set method
+		pk := input[1:] // extract public key from input
+		success, err := c.Set(pk)
+		if err != nil {
+			return nil, err
+		}
+		if success {
+			return []byte{0x01}, nil
+		}
+		return []byte{0x00}, nil
+
+	case 0x02: // Call the Get method
+		return c.Get()
+
+	case 0x03: // Call the Decrypt method
+	
+		// Extract the private key (first 96 bytes)
+		if len(input) < 97 {
+			return nil, fmt.Errorf("input too short, missing private key")
+		}
+		privateKeyByte := input[1:97]
+		input = input[97:]
+	
+		// Extract the length of the ciphertext (next 4 bytes)
+		if len(input) < 4 {
+			return nil, fmt.Errorf("input too short, missing ciphertext length")
+		}
+		cipherLength := binary.BigEndian.Uint32(input[:4])
+		input = input[4:]
+	
+		// Extract the length of the id (next 4 bytes)
+		if len(input) < 4 {
+			return nil, fmt.Errorf("input too short, missing id length")
+		}
+		idLength := binary.BigEndian.Uint32(input[:4])
+		input = input[4:]
+	
+		
+		if len(input) < int(cipherLength+idLength) {
+			return nil, fmt.Errorf("input too short for the provided ciphertext and id lengths")
+		}
+	
+		// Extract the ciphertext and id
+		cipherBytes := input[:cipherLength]
+		id := string(input[cipherLength : cipherLength+idLength])
+	
+	
+		return c.decrypt(privateKeyByte, cipherBytes, id)
+	
+
+	default:
+		return nil, fmt.Errorf("invalid method selector")
+	}
 }
+
+
+func (c *decryption) RequiredGas(input []byte) uint64 {
+	return params.Bn256PairingBaseGasIstanbul
+}
+
 func (c *decryption) SetCounterCollector(cc *CounterCollector) {
 	c.cc = cc
 }
+
 func (c *decryption) SetOutputLength(outLength int) {
 }
