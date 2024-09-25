@@ -13,6 +13,8 @@ docker build -t cdk-precompile .
 Then, use the instructions from this [link](https://docs.polygon.technology/cdk/getting-started/local-deployment/) to run the chain. In order to use the precompile image, change the `cdk_erigon_node_image` name in `params.yml` in the `kurtosis-cdk` repository before running it. 
 
 Once the chain is up, the commands in the `test-precompile/test.sh` script can be used to either call the precompile directly, or through a sample contract provided in the `test-precompile` directory.
+
+Note that the precompile requires seting the public key. For any call to the precompile, all inputs are packed together. Also, to distinguish between different calls like setting the pk or decrypting, the precompile will look at the first byte. If it is `0x01`, it is the call for the `set` function. If it is `0x02` it will be the `get` function which returns the stored pk. If it is `0x03` it is the decrypt function. Moreover, since the ciphertext and id size are not fixed, the input for the `decrypt` function is the concatenation of `(decryptionKey,ciphertextSize,idSize,ciphertext,id)`.
 ***
 
 

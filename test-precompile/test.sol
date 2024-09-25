@@ -39,9 +39,26 @@ contract Contract {
         address precompileAddress = address(
             0x0000000000000000000000000000000000000094
         );
+        bytes memory c = bytes(condition);
 
+        uint32 cipherLength=uint32(ciphertext.cipher.length);
+
+        bytes memory length1 = new bytes(4);
+        length1[0] = bytes1(uint8(cipherLength >> 24));
+        length1[1] = bytes1(uint8(cipherLength >> 16));
+        length1[2] = bytes1(uint8(cipherLength >> 8));
+        length1[3] = bytes1(uint8(cipherLength));
+
+        uint32 idLength=uint32(c.length);
+        
+        bytes memory length2 = new bytes(4);
+        length2[0] = bytes1(uint8(idLength >> 24));
+        length2[1] = bytes1(uint8(idLength >> 16));
+        length2[2] = bytes1(uint8(idLength >> 8));
+        length2[3] = bytes1(uint8(idLength));
+        
          (bool success, bytes memory decryptedData) = precompileAddress.call(
-                abi.encodePacked(key, ciphertext.cipher)
+               abi.encodePacked(uint8(3),key, length1, length2, ciphertext.cipher, c)
             );
        
       
